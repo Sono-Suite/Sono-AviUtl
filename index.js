@@ -86,7 +86,6 @@ function downloadFile(url, dest) {
         };
 
         https.get(requestOptions, (response) => {
-            // Handle HTTP Redirects
             if (response.statusCode === 301 || response.statusCode === 302) {
                 let redirectUrl = response.headers.location;
                 if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
@@ -188,9 +187,28 @@ function fetchLatestGitHubReleaseUrl(repo, searchPattern) {
     });
 }
 
+// --- Windows Japanese Language Pack & Non-Unicode System Locale ---
+function installJapaneseWindowsLocale() {
+    console.log('\n--- Configuring Windows Japanese Pack & Non-Unicode System Locale ---');
+    try {
+        // 1. Install Japanese Basic Language Pack Capability
+        console.log('[System Engine] Installing Language.Basic~~~ja-JP~0.0.1.0 capability...');
+        execSync('powershell -Command "Add-WindowsCapability -Online -Name Language.Basic~~~ja-JP~0.0.1.0"', { stdio: 'inherit' });
+
+        // 2. Set System Locale (System Locale for non-Unicode programs / ja-JP)
+        // Keeps user UI language untouched while ensuring Japanese text/code pages render properly.
+        console.log('[System Engine] Setting System Locale for non-Unicode programs to ja-JP...');
+        execSync('powershell -Command "Set-WinSystemLocale ja-JP"', { stdio: 'inherit' });
+        
+        console.log('✔ Installed Japanese pack and updated non-Unicode System Locale to ja-JP.');
+    } catch (err) {
+        console.error(`\x1b[31m[Warning] Could not set Windows system locale/language pack: ${err.message}\x1b[0m`);
+    }
+}
+
 // --- Configuration Setup ---
 function injectSystemSettingsProfile() {
-    console.log('[Config Engine] Setting properties to English & 60 FPS...');
+    console.log('[Config Engine] Setting AviUtl properties to English & 60 FPS...');
     const targetProperties = ['Language="English [Edit]"', 'FPS=60'];
 
     if (!fs.existsSync(CONFIG_PATH)) {
@@ -236,6 +254,11 @@ async function executeInstallationPipeline() {
 
         // 2. Setup System Paths & Configuration
         [PLUGIN_DIR, LANG_DIR].forEach(dir => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); });
+        
+        // Install Japanese pack & non-Unicode locale in Windows
+        installJapaneseWindowsLocale();
+        
+        // Inject English settings into AviUtl
         injectSystemSettingsProfile();
 
         // 3. Plugin Deployment Loop
@@ -271,7 +294,6 @@ async function executeInstallationPipeline() {
         }
         console.log('\n🎉 AviUtl setup sequence completed successfully!');
         
-        // Pause after installation completes
         await askQuestion('\nPress Enter to return to main menu...');
     } catch (err) {
         console.error(`\n\x1b[31mExecution pipeline failed: ${err.message}\x1b[0m`);
